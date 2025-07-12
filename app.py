@@ -192,8 +192,8 @@ with tab1:
         )
 
         # Filter full historical data for the selected state
-        full_state_data = df_merged_full[
-            df_merged_full['state_name_standardized'] == selected_state_hist
+        full_state_data = df_merged_latest_states[
+            df_merged_latest_states['state_name_standardized'] == selected_state_hist
         ].sort_values('date').reset_index(drop=True)
         
         if not full_state_data.empty:
