@@ -403,19 +403,76 @@ with tab2:
     current_active = int(india_current['active'].iloc[0]) if not india_current.empty else 10000
     current_recovered = int(india_current['recovered'].iloc[0]) if not india_current.empty else 100000
 
+
+    # Gemini explanations for tooltips
+    total_population_help = get_gemini_explanation(
+        "Explain what 'Total Population' means in an epidemic simulation and why it matters. Keep it concise.",
+        cache_key="help_total_population"
+    )
+    initial_infected_help = get_gemini_explanation(
+        "Explain what 'Initial Infected (I₀)' means in an epidemic simulation and why it matters. Keep it concise.",
+        cache_key="help_initial_infected"
+    )
+    r_naught_help = get_gemini_explanation(
+        "Explain what 'Basic Reproduction Number (R₀)' means in an epidemic simulation and why it matters. Keep it concise.",
+        cache_key="help_r_naught"
+    )
+    recovery_rate_help = get_gemini_explanation(
+        "Explain what 'Recovery Rate (γ) per day' means in an epidemic simulation and why it matters. Keep it concise.",
+        cache_key="help_recovery_rate"
+    )
+    simulation_days_help = get_gemini_explanation(
+        "Explain what 'Simulation Duration (days)' means in an epidemic simulation and why it matters. Keep it concise.",
+        cache_key="help_simulation_days"
+    )
+
     col_pop, col_init = st.columns(2)
     with col_pop:
-        total_population = st.number_input("Total Population", min_value=1000000, max_value=2000000000, value=1400000000, step=1000000)
+        total_population = st.number_input(
+            "Total Population",
+            min_value=1000000,
+            max_value=2000000000,
+            value=1400000000,
+            step=1000000,
+            help=total_population_help
+        )
     with col_init:
-        initial_infected = st.number_input("Initial Infected (I₀)", min_value=1, max_value=total_population//10, value=min(current_active, total_population//10))
+        initial_infected = st.number_input(
+            "Initial Infected (I₀)",
+            min_value=1,
+            max_value=total_population//10,
+            value=min(current_active, total_population//10),
+            help=initial_infected_help
+        )
 
     col_r0, col_gamma, col_days = st.columns(3)
     with col_r0:
-        r_naught = st.slider("Basic Reproduction Number (R₀)", min_value=0.1, max_value=6.0, value=1.5, step=0.1)
+        r_naught = st.slider(
+            "Basic Reproduction Number (R₀)",
+            min_value=0.1,
+            max_value=6.0,
+            value=1.5,
+            step=0.1,
+            help=r_naught_help
+        )
     with col_gamma:
-        recovery_rate = st.slider("Recovery Rate (γ) per day", min_value=0.01, max_value=0.50, value=0.1, step=0.01)
+        recovery_rate = st.slider(
+            "Recovery Rate (γ) per day",
+            min_value=0.01,
+            max_value=0.50,
+            value=0.1,
+            step=0.01,
+            help=recovery_rate_help
+        )
     with col_days:
-        simulation_days = st.slider("Simulation Duration (days)", min_value=30, max_value=730, value=180, step=30)
+        simulation_days = st.slider(
+            "Simulation Duration (days)",
+            min_value=30,
+            max_value=730,
+            value=180,
+            step=30,
+            help=simulation_days_help
+        )
 
     # Calculate derived parameters
     beta = r_naught * recovery_rate
