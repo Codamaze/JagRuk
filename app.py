@@ -403,8 +403,7 @@ with tab2:
     current_active = int(india_current['active'].iloc[0]) if not india_current.empty else 10000
     current_recovered = int(india_current['recovered'].iloc[0]) if not india_current.empty else 100000
 
-
-    # Gemini explanations for tooltips
+    # Gemini explanations for tooltips (from your original code - good to keep!)
     total_population_help = get_gemini_explanation(
         "Explain what 'Total Population' means in an epidemic simulation and why it matters. Keep it concise.",
         cache_key="help_total_population"
@@ -479,8 +478,8 @@ with tab2:
     initial_recovered = min(current_recovered, total_population - initial_infected)
     initial_susceptible = total_population - initial_infected - initial_recovered
 
-    # --- AI-Powered Explanations for Simulation Parameters ---
-    with st.expander("🤖 Explain Simulation Terms (for Layman)", expanded=False):
+    # --- AI-Powered Explanations for Simulation Terms (Updated for Layman) ---
+    with st.expander("🤖 Explain Simulation Terms", expanded=False):
         st.write("Understand the key epidemiological terms used in this simulation with simple analogies.")
         explanation_choice = st.selectbox(
             "Select a term to explain:",
@@ -492,7 +491,7 @@ with tab2:
                 "Recovered Population",
                 "SIR Model"
             ],
-            key='explanation_term_select_layman' # Changed key to avoid conflict
+            key='explanation_term_select_layman' # Unique key for this selectbox
         )
 
         # Generate prompt for the AI based on the selected term, with emphasis on simplicity and analogies
@@ -502,6 +501,7 @@ with tab2:
         Use short sentences, clear analogies, and simple examples to make it easy to understand.
         Focus on its role in how a disease spreads. Avoid jargon where possible.
         If appropriate, use a simple emoji or concept to illustrate.
+        Also generate any relevant images or visuals graphs or anything relevant for making people understand the terms
         """
         
         st.markdown(get_gemini_explanation(explanation_prompt, cache_key=f"explanation_layman_{explanation_choice}"))
@@ -513,7 +513,7 @@ with tab2:
             beta, recovery_rate, simulation_days
         )
         
-        # Plotting the results
+        # Plotting the results (from your friend's and your previous code - good visualization)
         fig_sim = go.Figure()
         colors = {'Susceptible': '#1f77b4', 'Infectious': '#ff7f0e', 'Recovered': '#2ca02c'}
         for column in ['Susceptible', 'Infectious', 'Recovered']:
@@ -526,8 +526,8 @@ with tab2:
         fig_sim.update_layout(title='SIR Model Simulation Results', xaxis_title='Days', yaxis_title='Population', height=500, hovermode='x unified')
         st.plotly_chart(fig_sim, use_container_width=True)
 
-        # --- AI-Powered Explanation for the Simulation Graph ---
-        with st.expander("🤖 Explain Simulation Graph ", expanded=True): 
+        # --- AI-Powered Explanation for the Simulation Graph (Updated for Layman) ---
+        with st.expander("🤖 Explain Simulation Graph", expanded=True): 
             graph_explanation_prompt = f"""
             Imagine the graph above is telling a story about a disease.
             Explain what each colored line on the SIR (Susceptible-Infectious-Recovered) model graph means
@@ -539,13 +539,14 @@ with tab2:
 
             Explain how looking at these lines helps us understand if the epidemic is getting worse, getting better, or stabilizing.
             Use simple analogies to illustrate the concepts.
+            Also generate any relevant images or visuals graphs or anything relevant for making people understand the terms
             """
             st.markdown(get_gemini_explanation(graph_explanation_prompt, cache_key=f"graph_explanation_sir_layman_{r_naught}_{recovery_rate}"))
 
-        # Key metrics and AI explanations
+        # Key metrics and AI explanations (retained)
         peak_infected_count = simulation_results['Infectious'].max()
         peak_infected_day_idx = simulation_results['Infectious'].idxmax()
-        peak_infected_day_value = simulation_results.loc[peak_infected_day_idx, 'Day']
+        peak_infected_day_value = simulation_results.loc[peak_infected_day_idx, 'Day'] # Ensure correct day value is retrieved
         total_affected = simulation_results['Recovered'].iloc[-1]
 
         st.subheader("📊 Key Simulation Outcomes")
@@ -561,8 +562,10 @@ with tab2:
             - Peak Infected Count: {int(peak_infected_count):,} on day {int(peak_infected_day_value)}
             - Total Affected Population: {int(total_affected):,}
             Provide actionable policy recommendations for Indian health authorities.
+            Also give the trustworthy and relevant links if needed.
             """
-            st.markdown(get_gemini_explanation(policy_prompt, cache_key=f"policy_{r_naught}_{simulation_days}_{peak_infected_count}"))
+            # Ensure cache key is robust
+            st.markdown(get_gemini_explanation(policy_prompt, cache_key=f"policy_{r_naught}_{recovery_rate}_{simulation_days}_{peak_infected_count}"))
 
     except Exception as e:
         st.error(f"An error occurred during simulation: {e}")
