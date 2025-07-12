@@ -55,10 +55,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Session State Initialization ---
-if 'simulation_running_hist' not in st.session_state:
-    st.session_state.simulation_running_hist = False
-if 'current_day_index' not in st.session_state:
-    st.session_state.current_day_index = 0
+
 
 # --- Enhanced Data Loading (Caching) ---
 @st.cache_data(ttl=3600, show_spinner="🔄 Loading and processing data...")
@@ -167,18 +164,12 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 # --- Tab 1: Dashboard Overview ---
 with tab1:
-    st.header("📊 Dashboard Overview: Trends and Hotspots")
-
-    # National Statistics (unchanged)
-    # ...
-
-    # --- Live Historical Trends Analysis (Refactored) ---
-    st.subheader("📈 Live Historical Trends Analysis")
-    st.info("Watch the epidemic evolve day by day based on historical data.")
+    # --- Static Historical Trends Analysis ---
+    st.subheader("📈 Historical Trends Analysis")
+    st.info("View the epidemic's historical trend for each state.")
 
     # State selection
     available_states = sorted([s for s in df_merged_latest_states['state_name_standardized'].unique() if s != 'India'])
-    
     if available_states:
         selected_state_hist = st.selectbox(
             "🔍 Select State for Historical Analysis:",
@@ -190,134 +181,36 @@ with tab1:
         full_state_data = df_merged_latest_states[
             df_merged_latest_states['state_name_standardized'] == selected_state_hist
         ].sort_values('date').reset_index(drop=True)
-        
+
         if not full_state_data.empty:
-            
-            # Control simulation speed
-            simulation_speed = st.slider("Simulation Speed (seconds per day)", 
-                                         min_value=0.1, max_value=3.0, value=0.5, step=0.1, 
-                                         key='sim_speed')
-            
-            # Control Buttons
-            col_start, col_stop, col_reset = st.columns(3)
-            
-            if col_start.button("▶️ Start Simulation", disabled=st.session_state.simulation_running_hist):
-                st.session_state.simulation_running_hist = True
-                if st.session_state.current_day_index >= len(full_state_data):
-                    st.session_state.current_day_index = 0
-                # Reset simulation_df_hist to start fresh when starting
-                st.session_state.simulation_df_hist = full_state_data.head(1).copy() 
-            
-            if col_stop.button("⏹️ Stop Simulation", disabled=not st.session_state.simulation_running_hist):
-                st.session_state.simulation_running_hist = False
-            
-            if col_reset.button("🔄 Reset Simulation"):
-                st.session_state.simulation_running_hist = False
-                st.session_state.current_day_index = 0
-                st.session_state.simulation_df_hist = full_state_data.head(1).copy() # Reset to first day
-                st.rerun()
-
-            # Placeholder for the plot and simulation status
-            plot_placeholder = st.empty()
-            status_placeholder = st.empty()
-
-            # --- Simulation Logic ---
-            
-            # Initialize simulation_df_hist if not present or needs reset
-            if 'simulation_df_hist' not in st.session_state or \
-               st.session_state.current_day_index == 0 and not st.session_state.simulation_running_hist:
-                st.session_state.simulation_df_hist = full_state_data.head(1).copy()
-            
-            if st.session_state.simulation_running_hist:
-                
-                # Check if we have reached the end of the data
-                if st.session_state.current_day_index < len(full_state_data):
-                    # Append the current day's data
-                    current_day_data = full_state_data.iloc[[st.session_state.current_day_index]]
-                    
-                    # Only append if the data for this index is not already present
-                    # This prevents duplicate rows on reruns if current_day_index is not strictly aligned
-                    if st.session_state.simulation_df_hist.empty or \
-                       current_day_data['date'].iloc[0] > st.session_state.simulation_df_hist['date'].iloc[-1]:
-                        st.session_state.simulation_df_hist = pd.concat([st.session_state.simulation_df_hist, current_day_data], ignore_index=True)
-                    
-                    st.session_state.current_day_index += 1
-                    
-                    # Display the current day status
-                    current_date_str = current_day_data['date'].dt.strftime('%Y-%m-%d').iloc[0]
-                    status_placeholder.info(f"Simulating Day {st.session_state.current_day_index} of {len(full_state_data)}: {current_date_str}")
-                else:
-                    st.session_state.simulation_running_hist = False
-                    status_placeholder.success("Simulation Complete! Showing full historical trend.")
-            
-                       
-           # --- Plotting the Simulation Data ---
-            
-            # Determine the data to plot based on simulation state
-            if st.session_state.simulation_running_hist:
-                df_plot = st.session_state.simulation_df_hist
-            else:
-                # If simulation is not running, show the full historical data for the selected state
-                # This handles initial display, stopped simulation, and reset state.
-                df_plot = full_state_data 
-
-            if df_plot.empty:
-                st.warning("No data to plot for the historical trend.") # Changed from error to warning
-            else:
-                st.info(f"Plotting {len(df_plot)} data points from {df_plot['date'].min().strftime('%Y-%m-%d')} to {df_plot['date'].max().strftime('%Y-%m-%d')}.")
-                # st.subheader("Debug: df_plot head before charting")
-                # st.dataframe(df_plot.head())
-                # st.subheader("Debug: df_plot tail before charting")
-                # st.dataframe(df_plot.tail())
-                # st.subheader("Debug: df_plot dtypes before charting")
-                # st.write(df_plot.dtypes)
-
-            # Create the Plotly figure
+            st.info(f"Plotting {len(full_state_data)} data points from {full_state_data['date'].min().strftime('%Y-%m-%d')} to {full_state_data['date'].max().strftime('%Y-%m-%d')}")
             fig_hist = go.Figure()
             metrics = ['confirmed', 'active', 'recovered', 'deceased']
             colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
-
             for metric, color in zip(metrics, colors):
                 fig_hist.add_trace(go.Scatter(
-                    x=df_plot['date'],
-                    y=df_plot[metric],
-                    mode='lines+markers' if st.session_state.simulation_running_hist else 'lines', # Add markers to highlight points during simulation
+                    x=full_state_data['date'],
+                    y=full_state_data[metric],
+                    mode='lines',
                     name=metric.title(),
                     line=dict(color=color, width=2)
                 ))
-            
-           # Add a vertical line for the current day if simulating
-            if st.session_state.simulation_running_hist and not df_plot.empty:
-                current_date = df_plot['date'].iloc[-1]
-                # Convert the Timestamp to a Unix timestamp in milliseconds
-                # This is the most reliable way to pass dates to Plotly for vlines/shapes
-                current_date_ms = current_date.timestamp() * 1000 # Convert to milliseconds
-
-                fig_hist.add_vline(x=current_date_ms, line_width=2, line_dash="dash", line_color="gray",
-                                   annotation_text="Current Day", annotation_position="top right")
             fig_hist.update_layout(
-                title=f'Live Historical Trends in {selected_state_hist}',
+                title=f'Historical Trends in {selected_state_hist}',
                 xaxis_title='Date',
                 yaxis_title='Number of Cases',
                 hovermode='x unified',
                 height=500,
                 showlegend=True,
                 template='plotly_white',
-                # Set a fixed x-axis range initially if you want to see the "fill-in" effect clearly
-                # Or let plotly auto-range but ensure enough data is accumulating
                 xaxis=dict(
                     range=[full_state_data['date'].min(), full_state_data['date'].max()]
                 )
             )
-            
-            plot_placeholder.plotly_chart(fig_hist, use_container_width=True)
-
-            if st.session_state.simulation_running_hist:
-                time.sleep(simulation_speed)
-                st.rerun()
-
+            st.plotly_chart(fig_hist, use_container_width=True)
         else:
             st.warning(f"No historical data available for {selected_state_hist}.")
+
 
       
     # State-wise Hotspot Analysis and Map (retained)
