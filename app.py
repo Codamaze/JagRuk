@@ -99,6 +99,24 @@ st.markdown('</div>', unsafe_allow_html=True)
 if df_merged_full is None or df_merged_full.empty:
     st.error("Critical error: Unable to load essential data. Please check data sources and logs.")
     st.stop()
+else:
+    st.success(f"Global data loaded: {len(df_merged_full)} records. Dates from {df_merged_full['date'].min().strftime('%Y-%m-%d')} to {df_merged_full['date'].max().strftime('%Y-%m-%d')}.")
+    # Display the first few rows and dtypes to ensure it looks correct
+    # st.subheader("Debug: df_merged_full head")
+    # st.dataframe(df_merged_full.head())
+    # st.subheader("Debug: df_merged_full dtypes")
+    # st.write(df_merged_full.dtypes)
+
+if df_merged_latest_states is None or df_merged_latest_states.empty:
+    st.error("Critical error: Unable to load latest state data.")
+    st.stop()
+else:
+    st.success(f"Latest state data loaded: {len(df_merged_latest_states)} records.")
+    # st.subheader("Debug: df_merged_latest_states head")
+    # st.dataframe(df_merged_latest_states.head())
+    # st.subheader("Debug: df_merged_latest_states dtypes")
+    # st.write(df_merged_latest_states.dtypes)
+
 
 # --- Sidebar ---
 with st.sidebar:
@@ -143,37 +161,16 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # --- Tab 1: Dashboard Overview ---
+# app.py
+
+# ... (previous code) ...
+
+# --- Tab 1: Dashboard Overview ---
 with tab1:
     st.header("📊 Dashboard Overview: Trends and Hotspots")
 
-    # National Statistics
-    st.subheader("🇮🇳 National Statistics")
-    india_data = df_merged_latest_states[df_merged_latest_states['state_name_standardized'] == 'India']
-    
-    if not india_data.empty:
-        data = india_data.iloc[0]
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1: st.metric(label="📈 Total Confirmed", value=f"{data['confirmed']:,}")
-        with col2: st.metric(label="🔴 Active Cases", value=f"{data['active']:,}")
-        with col3: st.metric(label="💚 Total Recovered", value=f"{data['recovered']:,}")
-        with col4: st.metric(label="⚫ Total Deaths", value=f"{data['deceased']:,}")
-
-        # AI Analysis
-        with st.expander("🤖 AI Analysis of Current Situation", expanded=False):
-            analysis_prompt = f"""
-            Analyze the current epidemic situation in India based on these statistics:
-            - Total Confirmed: {data['confirmed']:,}
-            - Active Cases: {data['active']:,}
-            - Recovered: {data['recovered']:,}
-            - Deaths: {data['deceased']:,}
-            
-            Provide a brief, actionable analysis for policymakers focusing on the current state and immediate priorities.
-            Keep it under 150 words and non-technical.
-            """
-            st.markdown(get_gemini_explanation(analysis_prompt, cache_key=f"analysis_{data['confirmed']}_{data['active']}"))
-    else:
-        st.info("National summary data not available")
+    # National Statistics (unchanged)
+    # ...
 
     # --- Live Historical Trends Analysis (Refactored) ---
     st.subheader("📈 Live Historical Trends Analysis")
@@ -183,7 +180,6 @@ with tab1:
     available_states = sorted([s for s in df_merged_latest_states['state_name_standardized'].unique() if s != 'India'])
     
     if available_states:
-        # Use a consistent key for the selectbox to avoid issues with Streamlit's rerun behavior
         selected_state_hist = st.selectbox(
             "🔍 Select State for Historical Analysis:",
             available_states,
@@ -191,7 +187,6 @@ with tab1:
             key='state_select_hist'
         )
 
-        # Filter full historical data for the selected state
         full_state_data = df_merged_latest_states[
             df_merged_latest_states['state_name_standardized'] == selected_state_hist
         ].sort_values('date').reset_index(drop=True)
@@ -208,9 +203,10 @@ with tab1:
             
             if col_start.button("▶️ Start Simulation", disabled=st.session_state.simulation_running_hist):
                 st.session_state.simulation_running_hist = True
-                # Reset index when starting
                 if st.session_state.current_day_index >= len(full_state_data):
                     st.session_state.current_day_index = 0
+                # Reset simulation_df_hist to start fresh when starting
+                st.session_state.simulation_df_hist = full_state_data.head(1).copy() 
             
             if col_stop.button("⏹️ Stop Simulation", disabled=not st.session_state.simulation_running_hist):
                 st.session_state.simulation_running_hist = False
@@ -218,7 +214,7 @@ with tab1:
             if col_reset.button("🔄 Reset Simulation"):
                 st.session_state.simulation_running_hist = False
                 st.session_state.current_day_index = 0
-                # Rerun immediately to reset the plot
+                st.session_state.simulation_df_hist = full_state_data.head(1).copy() # Reset to first day
                 st.rerun()
 
             # Placeholder for the plot and simulation status
@@ -227,24 +223,22 @@ with tab1:
 
             # --- Simulation Logic ---
             
-            # Initialize or update plot based on current index
-            if 'simulation_df_hist' not in st.session_state or st.session_state.current_day_index == 0:
-                # Start with the first day's data
+            # Initialize simulation_df_hist if not present or needs reset
+            if 'simulation_df_hist' not in st.session_state or \
+               st.session_state.current_day_index == 0 and not st.session_state.simulation_running_hist:
                 st.session_state.simulation_df_hist = full_state_data.head(1).copy()
             
             if st.session_state.simulation_running_hist:
                 
                 # Check if we have reached the end of the data
-                if st.session_state.current_day_index >= len(full_state_data):
-                    st.session_state.simulation_running_hist = False
-                    status_placeholder.success("Simulation Complete! Showing full historical trend.")
-                else:
+                if st.session_state.current_day_index < len(full_state_data):
                     # Append the current day's data
                     current_day_data = full_state_data.iloc[[st.session_state.current_day_index]]
                     
-                    # Update the simulation DataFrame in session state
-                    # Only append if the DataFrame is not already fully updated for this index
-                    if st.session_state.current_day_index >= len(st.session_state.simulation_df_hist):
+                    # Only append if the data for this index is not already present
+                    # This prevents duplicate rows on reruns if current_day_index is not strictly aligned
+                    if st.session_state.simulation_df_hist.empty or \
+                       current_day_data['date'].iloc[0] > st.session_state.simulation_df_hist['date'].iloc[-1]:
                         st.session_state.simulation_df_hist = pd.concat([st.session_state.simulation_df_hist, current_day_data], ignore_index=True)
                     
                     st.session_state.current_day_index += 1
@@ -252,11 +246,31 @@ with tab1:
                     # Display the current day status
                     current_date_str = current_day_data['date'].dt.strftime('%Y-%m-%d').iloc[0]
                     status_placeholder.info(f"Simulating Day {st.session_state.current_day_index} of {len(full_state_data)}: {current_date_str}")
+                else:
+                    st.session_state.simulation_running_hist = False
+                    status_placeholder.success("Simulation Complete! Showing full historical trend.")
             
-            # --- Plotting the Simulation Data ---
+                       
+           # --- Plotting the Simulation Data ---
             
-            # Determine the data to plot (either the simulation subset or the full data if finished/paused)
-            df_plot = st.session_state.simulation_df_hist if st.session_state.simulation_running_hist else full_state_data
+            # Determine the data to plot based on simulation state
+            if st.session_state.simulation_running_hist:
+                df_plot = st.session_state.simulation_df_hist
+            else:
+                # If simulation is not running, show the full historical data for the selected state
+                # This handles initial display, stopped simulation, and reset state.
+                df_plot = full_state_data 
+
+            if df_plot.empty:
+                st.warning("No data to plot for the historical trend.") # Changed from error to warning
+            else:
+                st.info(f"Plotting {len(df_plot)} data points from {df_plot['date'].min().strftime('%Y-%m-%d')} to {df_plot['date'].max().strftime('%Y-%m-%d')}.")
+                # st.subheader("Debug: df_plot head before charting")
+                # st.dataframe(df_plot.head())
+                # st.subheader("Debug: df_plot tail before charting")
+                # st.dataframe(df_plot.tail())
+                # st.subheader("Debug: df_plot dtypes before charting")
+                # st.write(df_plot.dtypes)
 
             # Create the Plotly figure
             fig_hist = go.Figure()
@@ -267,11 +281,20 @@ with tab1:
                 fig_hist.add_trace(go.Scatter(
                     x=df_plot['date'],
                     y=df_plot[metric],
-                    mode='lines',
+                    mode='lines+markers' if st.session_state.simulation_running_hist else 'lines', # Add markers to highlight points during simulation
                     name=metric.title(),
                     line=dict(color=color, width=2)
                 ))
+            
+           # Add a vertical line for the current day if simulating
+            if st.session_state.simulation_running_hist and not df_plot.empty:
+                current_date = df_plot['date'].iloc[-1]
+                # Convert the Timestamp to a Unix timestamp in milliseconds
+                # This is the most reliable way to pass dates to Plotly for vlines/shapes
+                current_date_ms = current_date.timestamp() * 1000 # Convert to milliseconds
 
+                fig_hist.add_vline(x=current_date_ms, line_width=2, line_dash="dash", line_color="gray",
+                                   annotation_text="Current Day", annotation_position="top right")
             fig_hist.update_layout(
                 title=f'Live Historical Trends in {selected_state_hist}',
                 xaxis_title='Date',
@@ -279,22 +302,24 @@ with tab1:
                 hovermode='x unified',
                 height=500,
                 showlegend=True,
-                template='plotly_white'
+                template='plotly_white',
+                # Set a fixed x-axis range initially if you want to see the "fill-in" effect clearly
+                # Or let plotly auto-range but ensure enough data is accumulating
+                xaxis=dict(
+                    range=[full_state_data['date'].min(), full_state_data['date'].max()]
+                )
             )
             
-            # Use the placeholder to display the plot
             plot_placeholder.plotly_chart(fig_hist, use_container_width=True)
 
-            # Important: If simulation is running, we sleep briefly and rerun the script. 
-            # This allows Streamlit to update the plot and resume the loop, 
-            # creating the "live" effect without a blocking while loop.
             if st.session_state.simulation_running_hist:
                 time.sleep(simulation_speed)
                 st.rerun()
 
         else:
             st.warning(f"No historical data available for {selected_state_hist}.")
-    
+
+      
     # State-wise Hotspot Analysis and Map (retained)
     st.subheader("🗺️ State-wise Hotspot Analysis")
     
@@ -396,6 +421,33 @@ with tab2:
     beta = r_naught * recovery_rate
     initial_recovered = min(current_recovered, total_population - initial_infected)
     initial_susceptible = total_population - initial_infected - initial_recovered
+
+    # --- AI-Powered Explanations for Simulation Parameters ---
+    with st.expander("🤖 Explain Simulation Terms", expanded=False):
+        st.write("Understand the key epidemiological terms used in this simulation.")
+        explanation_choice = st.selectbox(
+            "Select a term to explain:",
+            [
+                "Basic Reproduction Number (R₀)",
+                "Recovery Rate (γ)",
+                "Susceptible Population",
+                "Infectious Population",
+                "Recovered Population",
+                "SIR Model"
+            ],
+            key='explanation_term_select'
+        )
+
+        # Generate prompt for the AI based on the selected term
+        explanation_prompt = f"""
+        Explain the epidemiological term '{explanation_choice}' in the context of an epidemic simulation,
+        specifically for a public health dashboard.
+        Keep the explanation concise, clear, and easy for a non-expert audience to understand.
+        Focus on its role and significance in modeling disease spread.
+        """
+        
+        # Use your existing get_gemini_explanation function
+        st.markdown(get_gemini_explanation(explanation_prompt, cache_key=f"explanation_{explanation_choice}"))
 
     # Run simulation using the imported sir_model
     try:
