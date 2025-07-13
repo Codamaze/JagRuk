@@ -21,7 +21,7 @@ def initialize_gemini_api() -> Optional[Any]:
         try:
             genai.configure(api_key=api_key)
             # Use 'gemini-1.5-flash' for faster generation, or 'gemini-1.5-pro' for higher quality if needed
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-2.0-flash-lite")
             logger.info("Gemini API initialized successfully.")
             return model
         except Exception as e:
