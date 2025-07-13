@@ -178,8 +178,8 @@ with tab1:
             key='state_select_hist'
         )
 
-        full_state_data = df_merged_latest_states[
-            df_merged_latest_states['state_name_standardized'] == selected_state_hist
+        full_state_data = df_merged_full[
+            df_merged_full['state_name'] == selected_state_hist
         ].sort_values('date').reset_index(drop=True)
 
         if not full_state_data.empty:
@@ -396,8 +396,8 @@ with tab2:
         If appropriate, use a simple emoji or concept to illustrate.
         Also generate any relevant images or visuals graphs or anything relevant for making people understand the terms
         """
-        
-        st.markdown(get_gemini_explanation(explanation_prompt, cache_key=f"explanation_layman_{explanation_choice}"))
+        if st.button(f"Explain '{explanation_choice}' with AI"):
+            st.markdown(get_gemini_explanation(explanation_prompt, cache_key=f"explanation_layman_{explanation_choice}"))
 
     # Run simulation using the imported sir_model
     try:
@@ -434,7 +434,8 @@ with tab2:
             Use simple analogies to illustrate the concepts.
             Also generate any relevant images or visuals graphs or anything relevant for making people understand the terms
             """
-            st.markdown(get_gemini_explanation(graph_explanation_prompt, cache_key=f"graph_explanation_sir_layman_{r_naught}_{recovery_rate}"))
+            if st.button("Generate AI Insights for Simulation"):
+                st.markdown(get_gemini_explanation(graph_explanation_prompt, cache_key=f"graph_explanation_sir_layman_{r_naught}_{recovery_rate}"))
 
         # Key metrics and AI explanations (retained)
         peak_infected_count = simulation_results['Infectious'].max()
