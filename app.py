@@ -178,8 +178,8 @@ with tab1:
             key='state_select_hist'
         )
 
-        full_state_data = df_merged_latest_states[
-            df_merged_latest_states['state_name_standardized'] == selected_state_hist
+        full_state_data = df_merged_full[
+            df_merged_full['state_name'] == selected_state_hist
         ].sort_values('date').reset_index(drop=True)
 
         if not full_state_data.empty:
