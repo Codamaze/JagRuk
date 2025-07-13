@@ -206,5 +206,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# Local virtual environments
+om/
 .env
 /.streamlit/secrets.toml
